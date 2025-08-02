@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=390, initial-scale=1.0" />
     <title>Boop To Earn</title>
 
-    <!-- Farcaster Metadata -->
+    <!-- Farcaster Mini App Metadata -->
     <meta name="fc:frame" content='{
       "version": "1",
       "imageUrl": "https://boop-to-earn.vercel.app/image.png",
@@ -27,13 +27,18 @@
         background: #00BFFF;
         color: white;
         font-family: sans-serif;
-        text-align: center;
-        padding: 16px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: space-between;
         min-height: 100vh;
+        padding: 24px 0;
+        text-align: center;
+      }
+
+      h1, h2 {
+        margin: 0;
+        font-weight: bold;
       }
 
       .boop-image {
@@ -41,77 +46,31 @@
         height: 160px;
         border-radius: 50%;
         object-fit: cover;
-        border: 4px solid white;
         cursor: pointer;
-        margin: 12px 0;
+        border: 4px solid white;
       }
 
       .counter {
         font-size: 1.2rem;
-        margin: 8px 0;
+        margin: 12px 0;
         max-width: 90%;
         word-break: break-word;
-      }
-
-      .connect-btn {
-        background: white;
-        color: black;
-        font-weight: bold;
-        padding: 0.6rem 1.2rem;
-        border: none;
-        border-radius: 8px;
-        margin-top: 12px;
-        cursor: pointer;
-      }
-
-      .connect-btn:disabled {
-        background: #999;
-        cursor: not-allowed;
-      }
-
-      /* ✅ Toast Styles */
-      #statusMessage {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 12px 18px;
-        border-radius: 8px;
-        font-weight: bold;
-        font-size: 14px;
-        display: none;
-        z-index: 9999;
-        min-width: 220px;
-        text-align: center;
-      }
-
-      .toast-success {
-        background: #4CAF50;
-        color: white;
-      }
-      .toast-error {
-        background: #FF4D4D;
-        color: white;
-      }
-      .toast-info {
-        background: #333;
-        color: white;
       }
     </style>
   </head>
   <body>
-    <h2 class="counter" id="totalBoops">Total Boops: ...</h2>
+    <h2 id="totalBoops" class="counter">Total Boops: ...</h2>
 
-    <img src="/doglogo.png" alt="Boop" class="boop-image" id="boopButton" />
+    <img
+      src="/doglogo.png"
+      alt="Dog Nose"
+      class="boop-image"
+      id="boopButton"
+    />
 
-    <h2 class="counter" id="totalTokens">Total Tokens: ...</h2>
+    <h2 id="totalUsers" class="counter">Total Users: ...</h2>
 
-    <button class="connect-btn" id="connectBtn">Connect Wallet</button>
-
-    <!-- ✅ Toast Message Container -->
-    <div id="statusMessage"></div>
-
-    <!-- SDK & Wagmi -->
+    <!-- Script Setup -->
     <script type="module">
       import {
         createConfig,
@@ -119,144 +78,68 @@
         readContract,
         writeContract,
         http
-      } from 'https://esm.sh/@wagmi/core@2.6.1'
+      } from 'https://esm.sh/@wagmi/core'
 
       import { arbitrum } from 'https://esm.sh/@wagmi/core/chains'
-      import { farcasterMiniApp } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector@1.0.0'
+      import { farcasterMiniApp } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector'
       import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk'
 
-      sdk.actions.ready({ disableNativeGestures: true })
-
       const totalBoopsEl = document.getElementById("totalBoops")
-      const totalTokensEl = document.getElementById("totalTokens")
+      const totalUsersEl = document.getElementById("totalUsers")
       const boopBtn = document.getElementById("boopButton")
-      const connectBtn = document.getElementById("connectBtn")
-      const statusDiv = document.getElementById("statusMessage")
 
-      // ✅ Toast message helper
-      function showMessage(msg, type = "info") {
-        statusDiv.textContent = msg
-        statusDiv.className = ""
-        statusDiv.style.display = "block"
-        if (type === "error") {
-          statusDiv.classList.add("toast-error")
-        } else if (type === "success") {
-          statusDiv.classList.add("toast-success")
-        } else {
-          statusDiv.classList.add("toast-info")
-        }
-        setTimeout(() => {
-          statusDiv.style.display = "none"
-        }, 4000)
-      }
-
-      // ✅ Wagmi Config
       const config = createConfig({
         chains: [arbitrum],
-        transports: { [arbitrum.id]: http() },
-        connectors: [farcasterMiniApp()]
+        transports: { [arbitrum.id]: http() }
       })
 
-      let account
-
-      async function updateStats() {
-        const contract = await fetch('/contract.json').then(r => r.json())
-        const { address, abi } = contract
-
-        const [boops, tokens] = await Promise.all([
-          readContract(config, { address, abi, functionName: 'totalBoops' }),
-          readContract(config, { address, abi, functionName: 'totalTokensDistributed' })
-        ])
-
-        const tokensFormatted = (BigInt(tokens) / 10n ** 18n).toString()
-        totalBoopsEl.textContent = `Total Boops: ${boops}`
-        totalTokensEl.textContent = `Total Tokens: ${tokensFormatted}`
-      }
-
-      // ✅ Connect Wallet
-      connectBtn.addEventListener('click', async () => {
-        try {
-          const res = await connect(config, { connector: farcasterMiniApp() })
-          account = res.accounts[0]
-          connectBtn.textContent = `${account.slice(0, 6)}...${account.slice(-4)}`
-          connectBtn.disabled = true
-          showMessage("✅ Wallet connected!", "success")
-        } catch (e) {
-          console.warn('Connect failed:', e)
-          if (e.name === "UserRejectedRequestError") {
-            showMessage("❌ Wallet connection rejected.", "error")
-          } else {
-            showMessage("⚠️ Failed to connect wallet.", "error")
-          }
-        }
-      })
-
-      // ✅ Handle Boop Click
-      boopBtn.addEventListener("click", async () => {
-        if (!account) {
-          showMessage("⚠️ Please connect wallet first.", "error")
-          return
-        }
-
-        boopBtn.style.opacity = 0.5
-        boopBtn.disabled = true
-
+      const fetchStats = async () => {
         try {
           const contract = await fetch('/contract.json').then(r => r.json())
           const { address, abi } = contract
 
-          // ✅ Pre-check contract state
-          const paused = await readContract(config, {
-            address,
-            abi,
-            functionName: 'paused'
-          })
+          const [boops, users] = await Promise.all([
+            readContract(config, { address, abi, functionName: 'totalBoops' }),
+            readContract(config, { address, abi, functionName: 'totalUniqueUsers' })
+          ])
 
-          if (paused) {
-            showMessage("🚨 Boops are paused right now.", "error")
-            return
-          }
-
-          const remaining = await readContract(config, {
-            address,
-            abi,
-            functionName: 'boopsRemaining',
-            args: [account]
-          })
-
-          if (remaining === 0n) {
-            showMessage("🚫 You’ve reached your daily boop limit.", "error")
-            return
-          }
-
-          // ✅ Call boop (wallet auto-calculates gas)
-          const txHash = await writeContract(config, {
-            address,
-            abi,
-            functionName: 'boop',
-            args: []
-          })
-
-          console.log("✅ Booped!", txHash)
-          await updateStats()
-          showMessage("🎉 Boop successful!", "success")
+          totalBoopsEl.innerText = `Total Boops: ${boops}`
+          totalUsersEl.innerText = `Total Users: ${users}`
         } catch (err) {
-          console.warn("Boop failed", err)
+          totalBoopsEl.innerText = 'Total Boops: ?'
+          totalUsersEl.innerText = 'Total Users: ?'
+        }
+      }
 
-          if (err.name === "UserRejectedRequestError" || err.message?.includes("User rejected the request")) {
-            showMessage("❌ You rejected the transaction.", "error")
-          } else if (err.message?.includes("insufficient funds") || err.message?.includes("gas")) {
-            showMessage("⛽ Wallet says insufficient gas — check ETH on Arbitrum.", "error")
-          } else {
-            showMessage("⚠️ Boop failed. Check console.", "error")
-          }
+      boopBtn.addEventListener("click", async () => {
+        boopBtn.style.opacity = 0.5
+
+        try {
+          await connect(config, { connector: farcasterMiniApp() })
+
+          const contract = await fetch('/contract.json').then(r => r.json())
+          const { address, abi } = contract
+
+          const hash = await writeContract(config, {
+            address,
+            abi,
+            functionName: 'boop'
+          })
+
+          console.log('Booped!', hash)
+          await fetchStats()
+        } catch (err) {
+          console.warn("Boop error or rejected", err)
+          // Optional: hide user-facing error
         } finally {
           boopBtn.style.opacity = 1
-          boopBtn.disabled = false
         }
       })
 
-      await updateStats()
+      await fetchStats()
+
+      // Notify Warpcast that the app is ready
+      sdk.actions.ready({ disableNativeGestures: true })
     </script>
   </body>
 </html>
