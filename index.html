@@ -82,6 +82,7 @@
       import { arbitrum } from 'https://esm.sh/@wagmi/core/chains'
       import { farcasterMiniApp } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector'
       import { parseEther } from 'https://esm.sh/viem'
+      import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk'
 
       const totalBoopsEl = document.getElementById("totalBoops")
       const totalTokensEl = document.getElementById("totalTokens")
@@ -131,6 +132,9 @@
       })
 
       await fetchStats()
+
+      // ✅ Notify Warpcast SDK you’re ready
+      sdk.actions.ready({ disableNativeGestures: true })
     </script>
   </body>
 </html>
