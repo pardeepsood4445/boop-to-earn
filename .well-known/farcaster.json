@@ -1,3 +1,5 @@
+My farcaster.json
+
 {
   "accountAssociation": {
     "header": "eyJmaWQiOjE3NjUyLCJ0eXBlIjoiY3VzdG9keSIsImtleSI6IjB4RGM1QmU0Mjg2MEZBRDQ3MTFlQTQ5Nzk4QzE2RDRmMjgwQUMxMzZGMyJ9",
@@ -13,7 +15,6 @@
     "buttonTitle": "Claim Boop",
     "splashImageUrl": "https://boop-to-earn.vercel.app/splash.png",
     "splashBackgroundColor": "#00BFFF",
-    "castShareUrl": "https://farcaster.xyz/~/compose?text=Just%20Booped%20on%20Boop%20To%20Earn%20👉%20https://boop-to-earn.vercel.app",
     "webhookUrl": "https://boop-to-earn.vercel.app/api/webhook"
   }
 }
