@@ -31,8 +31,10 @@
         flex-direction: column;
         align-items: center;
         justify-content: space-between;
-        min-height: 100vh;
-        padding: 24px 0;
+        height: 100dvh;
+        overflow-y: auto;
+        padding: 24px 12px;
+        box-sizing: border-box;
         text-align: center;
       }
 
@@ -52,8 +54,9 @@
       }
 
       .counter {
-        font-size: 1.2rem;
-        margin: 12px 0;
+        font-size: 1rem;
+        margin: 10px 0;
+        word-wrap: break-word;
       }
     </style>
   </head>
@@ -102,8 +105,9 @@
           readContract(config, { address, abi, functionName: 'totalTokensDistributed' })
         ])
 
+        const formatted = Number(tokens) / 1e18
         totalBoopsEl.innerText = `Total Boops: ${boops}`
-        totalTokensEl.innerText = `Total Tokens: ${tokens}`
+        totalTokensEl.innerText = `Total Tokens: ${formatted.toFixed(2)}`
       }
 
       boopBtn.addEventListener("click", async () => {
@@ -133,7 +137,7 @@
 
       await fetchStats()
 
-      // ✅ Notify Warpcast SDK you’re ready
+      // Notify Warpcast you're ready
       sdk.actions.ready({ disableNativeGestures: true })
     </script>
   </body>
