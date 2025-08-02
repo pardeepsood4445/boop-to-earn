@@ -86,11 +86,11 @@
         connect,
         getAccount,
         readContract,
-        simulateContract,
         writeContract,
         http
       } from 'https://esm.sh/@wagmi/core@2.6.1'
 
+      import { estimateGas } from 'https://esm.sh/viem@1.21.4'
       import { arbitrum } from 'https://esm.sh/@wagmi/core/chains'
       import { farcasterMiniApp } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector@1.0.0'
       import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk'
@@ -178,23 +178,23 @@
             return
           }
 
-          // ✅ Simulate first to get gas estimate
-          const simulation = await simulateContract(config, {
+          // ✅ Estimate gas via RPC
+          const gasEstimate = await estimateGas(config, {
             address,
             abi,
             functionName: 'boop',
             account
           })
 
-          console.log("Gas estimate:", simulation.request.gas)
+          console.log("⛽ Gas estimate:", gasEstimate)
 
-          // ✅ Write transaction with explicit gas
+          // ✅ Write transaction using that gas estimate
           const txHash = await writeContract(config, {
             address,
             abi,
             functionName: 'boop',
             args: [],
-            gas: simulation.request.gas
+            gas: gasEstimate
           })
 
           console.log("✅ Booped!", txHash)
