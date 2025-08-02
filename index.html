@@ -84,13 +84,11 @@
       import {
         createConfig,
         connect,
-        getAccount,
         readContract,
         writeContract,
         http
       } from 'https://esm.sh/@wagmi/core@2.6.1'
 
-      import { estimateGas } from 'https://esm.sh/viem@1.21.4'
       import { arbitrum } from 'https://esm.sh/@wagmi/core/chains'
       import { farcasterMiniApp } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector@1.0.0'
       import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk'
@@ -124,6 +122,7 @@
         totalTokensEl.textContent = `Total Tokens: ${tokensFormatted}`
       }
 
+      // ✅ Connect Wallet
       connectBtn.addEventListener('click', async () => {
         try {
           const res = await connect(config, { connector: farcasterMiniApp() })
@@ -140,6 +139,7 @@
         }
       })
 
+      // ✅ Handle Boop Click
       boopBtn.addEventListener("click", async () => {
         if (!account) {
           alert("Please connect wallet first.")
@@ -153,7 +153,7 @@
           const contract = await fetch('/contract.json').then(r => r.json())
           const { address, abi } = contract
 
-          // ✅ Pre-check: is contract paused?
+          // ✅ Pre-check contract state
           const paused = await readContract(config, {
             address,
             abi,
@@ -165,7 +165,6 @@
             return
           }
 
-          // ✅ Check daily limit for user
           const remaining = await readContract(config, {
             address,
             abi,
@@ -178,23 +177,12 @@
             return
           }
 
-          // ✅ Estimate gas via RPC
-          const gasEstimate = await estimateGas(config, {
-            address,
-            abi,
-            functionName: 'boop',
-            account
-          })
-
-          console.log("⛽ Gas estimate:", gasEstimate)
-
-          // ✅ Write transaction using that gas estimate
+          // ✅ Call boop (wallet auto-calculates gas)
           const txHash = await writeContract(config, {
             address,
             abi,
             functionName: 'boop',
-            args: [],
-            gas: gasEstimate
+            args: []  // no manual gas
           })
 
           console.log("✅ Booped!", txHash)
@@ -206,7 +194,7 @@
           if (err.name === "UserRejectedRequestError" || err.message?.includes("User rejected the request")) {
             alert("❌ You rejected the transaction. Boop canceled.")
           } else if (err.message?.includes("insufficient funds") || err.message?.includes("gas")) {
-            alert("⛽ Gas issue: Try raising gas or check network settings.")
+            alert("⛽ Wallet says insufficient gas — check you have enough ETH on Arbitrum.")
           } else {
             alert("⚠️ Boop failed. Check console for details.")
           }
