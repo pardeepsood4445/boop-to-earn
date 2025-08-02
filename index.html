@@ -1,136 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=390, initial-scale=1.0" />
-  <title>Boop To Earn</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=390, initial-scale=1.0" />
+    <title>Boop To Earn</title>
 
-  <!-- Farcaster Mini App Metadata -->
-  <meta name="fc:frame" content='{
-    "version": "1",
-    "imageUrl": "https://boop-to-earn.vercel.app/image.png",
-    "button": {
-      "title": "Claim Boop",
-      "action": {
-        "type": "launch_frame",
-        "name": "BoopToEarn",
-        "url": "https://boop-to-earn.vercel.app",
-        "splashImageUrl": "https://boop-to-earn.vercel.app/splash.png",
-        "splashBackgroundColor": "#00BFFF"
+    <!-- Farcaster Mini App Metadata -->
+    <meta name="fc:frame" content='{
+      "version": "1",
+      "imageUrl": "https://boop-to-earn.vercel.app/image.png",
+      "button": {
+        "title": "Claim Boop",
+        "action": {
+          "type": "launch_frame",
+          "name": "BoopToEarn",
+          "url": "https://boop-to-earn.vercel.app",
+          "splashImageUrl": "https://boop-to-earn.vercel.app/splash.png",
+          "splashBackgroundColor": "#00BFFF"
+        }
       }
-    }
-  }' />
+    }' />
 
-  <style>
-    body {
-      margin: 0;
-      background: #00BFFF;
-      color: white;
-      font-family: sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
-      min-height: 100vh;
-      padding: 24px 0;
-      text-align: center;
-    }
-
-    h1, h2 {
-      margin: 0;
-      font-weight: bold;
-    }
-
-    .boop-image {
-      width: 160px;
-      height: 160px;
-      border-radius: 50%;
-      object-fit: cover;
-      cursor: pointer;
-      border: 4px solid white;
-    }
-
-    .counter {
-      font-size: 1.2rem;
-      margin: 12px 0;
-    }
-  </style>
-</head>
-<body>
-  <h2 id="totalBoops" class="counter">Total Boops: ...</h2>
-
-  <img src="/doglogo.png" alt="Dog Nose" class="boop-image" id="boopButton" />
-
-  <h2 id="totalTokens" class="counter">Total Tokens: ...</h2>
-
-  <!-- Farcaster SDK -->
-  <script type="module">
-    import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk';
-    sdk.actions.ready({ disableNativeGestures: true });
-  </script>
-
-  <!-- Wagmi + Boop Logic -->
-  <script type="module">
-    import {
-      createConfig,
-      connect,
-      readContract,
-      writeContract,
-      http
-    } from 'https://esm.sh/@wagmi/core';
-
-    import { arbitrum } from 'https://esm.sh/@wagmi/core/chains';
-    import { farcasterMiniApp } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector';
-    import { parseEther } from 'https://esm.sh/viem';
-
-    const totalBoopsEl = document.getElementById("totalBoops");
-    const totalTokensEl = document.getElementById("totalTokens");
-    const boopBtn = document.getElementById("boopButton");
-
-    const config = createConfig({
-      chains: [arbitrum],
-      transports: { [arbitrum.id]: http() }
-    });
-
-    const fetchStats = async () => {
-      const contract = await fetch('/contract.json').then(r => r.json());
-      const { address, abi } = contract;
-
-      const [boops, tokens] = await Promise.all([
-        readContract(config, { address, abi, functionName: 'totalBoops' }),
-        readContract(config, { address, abi, functionName: 'totalTokensDistributed' })
-      ]);
-
-      totalBoopsEl.innerText = `Total Boops: ${boops}`;
-      totalTokensEl.innerText = `Total Tokens: ${tokens}`;
-    };
-
-    boopBtn.addEventListener("click", async () => {
-      boopBtn.style.opacity = 0.5;
-
-      try {
-        await connect(config, { connector: farcasterMiniApp() });
-
-        const contract = await fetch('/contract.json').then(r => r.json());
-        const { address, abi } = contract;
-
-        const hash = await writeContract(config, {
-          address,
-          abi,
-          functionName: 'boop',
-          value: parseEther('0')
-        });
-
-        console.log('Booped!', hash);
-        await fetchStats();
-      } catch (err) {
-        console.warn("Boop failed or rejected", err);
-      } finally {
-        boopBtn.style.opacity = 1;
+    <style>
+      body {
+        margin: 0;
+        background: #00BFFF;
+        color: white;
+        font-family: sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 100vh;
+        padding: 24px 0;
+        text-align: center;
       }
-    });
 
-    await fetchStats();
-  </script>
-</body>
+      .boop-image {
+        width: 160px;
+        height: 160px;
+        border-radius: 50%;
+        object-fit: cover;
+        cursor: pointer;
+        border: 4px solid white;
+      }
+
+      .counter {
+        font-size: 1.2rem;
+        margin: 12px 0;
+        word-wrap: break-word;
+      }
+
+      #status {
+        margin-top: 12px;
+        font-size: 1rem;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <h2 id="totalBoops" class="counter">Total Boops: ...</h2>
+
+    <img
+      src="/doglogo.png"
+      alt="Dog Nose"
+      class="boop-image"
+      id="boopButton"
+    />
+
+    <h2 id="totalUsers" class="counter">Total Users: ...</h2>
+
+    <div id="status"></div>
+
+    <!-- SDK Logic -->
+    <script type="module">
+      import {
+        createConfig,
+        connect,
+        readContract,
+        writeContract,
+        http
+      } from 'https://esm.sh/@wagmi/core'
+
+      import { arbitrum } from 'https://esm.sh/@wagmi/core/chains'
+      import { farcasterMiniApp } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector'
+      import { parseEther } from 'https://esm.sh/viem'
+      import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk'
+
+      const totalBoopsEl = document.getElementById("totalBoops")
+      const totalUsersEl = document.getElementById("totalUsers")
+      const boopBtn = document.getElementById("boopButton")
+      const status = document.getElementById("status")
+
+      const config = createConfig({
+        chains: [arbitrum],
+        transports: {
+          [arbitrum.id]: http("https://rpc.ankr.com/arbitrum") // Free Ankr RPC
+        }
+      })
+
+      const fetchStats = async () => {
+        const { address, abi } = await fetch("/contract.json").then(r => r.json())
+        try {
+          const [boops, users] = await Promise.all([
+            readContract(config, { address, abi, functionName: 'totalBoops' }),
+            readContract(config, { address, abi, functionName: 'totalUniqueUsers' })
+          ])
+          totalBoopsEl.textContent = `Total Boops: ${boops}`
+          totalUsersEl.textContent = `Total Users: ${users}`
+        } catch (err) {
+          totalBoopsEl.textContent = "Total Boops: N/A"
+          totalUsersEl.textContent = "Total Users: N/A"
+          console.error(err)
+        }
+      }
+
+      boopBtn.addEventListener("click", async () => {
+        boopBtn.style.opacity = 0.5
+        status.textContent = "Booping..."
+
+        try {
+          await connect(config, { connector: farcasterMiniApp() })
+
+          const { address, abi } = await fetch("/contract.json").then(r => r.json())
+
+          const hash = await writeContract(config, {
+            address,
+            abi,
+            functionName: 'boop',
+            args: [],
+            value: parseEther('0') // important: 0 ETH
+          })
+
+          console.log("TX:", hash)
+          status.innerHTML = `✅ Booped! <a href="https://arbiscan.io/tx/${hash}" target="_blank" style="color:white;">View</a>`
+          await fetchStats()
+        } catch (err) {
+          console.warn("Boop failed:", err)
+          status.textContent = "❌ Boop failed or rejected."
+        } finally {
+          boopBtn.style.opacity = 1
+        }
+      })
+
+      await fetchStats()
+      sdk.actions.ready({ disableNativeGestures: true })
+    </script>
+  </body>
 </html>
