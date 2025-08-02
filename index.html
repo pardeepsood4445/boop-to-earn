@@ -68,6 +68,35 @@
         background: #999;
         cursor: not-allowed;
       }
+
+      /* ✅ Toast Styles */
+      #statusMessage {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 12px 18px;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 14px;
+        display: none;
+        z-index: 9999;
+        min-width: 220px;
+        text-align: center;
+      }
+
+      .toast-success {
+        background: #4CAF50;
+        color: white;
+      }
+      .toast-error {
+        background: #FF4D4D;
+        color: white;
+      }
+      .toast-info {
+        background: #333;
+        color: white;
+      }
     </style>
   </head>
   <body>
@@ -78,6 +107,9 @@
     <h2 class="counter" id="totalTokens">Total Tokens: ...</h2>
 
     <button class="connect-btn" id="connectBtn">Connect Wallet</button>
+
+    <!-- ✅ Toast Message Container -->
+    <div id="statusMessage"></div>
 
     <!-- SDK & Wagmi -->
     <script type="module">
@@ -99,7 +131,26 @@
       const totalTokensEl = document.getElementById("totalTokens")
       const boopBtn = document.getElementById("boopButton")
       const connectBtn = document.getElementById("connectBtn")
+      const statusDiv = document.getElementById("statusMessage")
 
+      // ✅ Toast message helper
+      function showMessage(msg, type = "info") {
+        statusDiv.textContent = msg
+        statusDiv.className = ""
+        statusDiv.style.display = "block"
+        if (type === "error") {
+          statusDiv.classList.add("toast-error")
+        } else if (type === "success") {
+          statusDiv.classList.add("toast-success")
+        } else {
+          statusDiv.classList.add("toast-info")
+        }
+        setTimeout(() => {
+          statusDiv.style.display = "none"
+        }, 4000)
+      }
+
+      // ✅ Wagmi Config
       const config = createConfig({
         chains: [arbitrum],
         transports: { [arbitrum.id]: http() },
@@ -129,12 +180,13 @@
           account = res.accounts[0]
           connectBtn.textContent = `${account.slice(0, 6)}...${account.slice(-4)}`
           connectBtn.disabled = true
+          showMessage("✅ Wallet connected!", "success")
         } catch (e) {
           console.warn('Connect failed:', e)
           if (e.name === "UserRejectedRequestError") {
-            alert("❌ Wallet connection rejected.")
+            showMessage("❌ Wallet connection rejected.", "error")
           } else {
-            alert("⚠️ Failed to connect wallet.")
+            showMessage("⚠️ Failed to connect wallet.", "error")
           }
         }
       })
@@ -142,7 +194,7 @@
       // ✅ Handle Boop Click
       boopBtn.addEventListener("click", async () => {
         if (!account) {
-          alert("Please connect wallet first.")
+          showMessage("⚠️ Please connect wallet first.", "error")
           return
         }
 
@@ -161,7 +213,7 @@
           })
 
           if (paused) {
-            alert("🚨 Boops are paused right now.")
+            showMessage("🚨 Boops are paused right now.", "error")
             return
           }
 
@@ -173,7 +225,7 @@
           })
 
           if (remaining === 0n) {
-            alert("🚫 You’ve reached your daily boop limit.")
+            showMessage("🚫 You’ve reached your daily boop limit.", "error")
             return
           }
 
@@ -182,21 +234,21 @@
             address,
             abi,
             functionName: 'boop',
-            args: []  // no manual gas
+            args: []
           })
 
           console.log("✅ Booped!", txHash)
           await updateStats()
-          alert("🎉 Boop successful!")
+          showMessage("🎉 Boop successful!", "success")
         } catch (err) {
           console.warn("Boop failed", err)
 
           if (err.name === "UserRejectedRequestError" || err.message?.includes("User rejected the request")) {
-            alert("❌ You rejected the transaction. Boop canceled.")
+            showMessage("❌ You rejected the transaction.", "error")
           } else if (err.message?.includes("insufficient funds") || err.message?.includes("gas")) {
-            alert("⛽ Wallet says insufficient gas — check you have enough ETH on Arbitrum.")
+            showMessage("⛽ Wallet says insufficient gas — check ETH on Arbitrum.", "error")
           } else {
-            alert("⚠️ Boop failed. Check console for details.")
+            showMessage("⚠️ Boop failed. Check console.", "error")
           }
         } finally {
           boopBtn.style.opacity = 1
