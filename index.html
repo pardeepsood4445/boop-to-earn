@@ -59,30 +59,15 @@
 
   <body>
     <h2 id="totalBoops" class="counter">Total Boops: ...</h2>
-
-    <img
-      src="/doglogo.png"
-      alt="Dog Nose"
-      class="boop-image"
-      id="boopButton"
-    />
-
+    <img src="/doglogo.png" alt="Dog Nose" class="boop-image" id="boopButton" />
     <h2 id="totalTokens" class="counter">Total Tokens: ...</h2>
 
-    <!-- SDK Setup -->
     <script type="module">
-      import {
-        createConfig,
-        connect,
-        readContract,
-        writeContract,
-        http
-      } from 'https://esm.sh/@wagmi/core'
-
+      import { createConfig, connect, writeContract, readContract, http } from 'https://esm.sh/@wagmi/core'
       import { arbitrum } from 'https://esm.sh/@wagmi/core/chains'
-      import { farcasterMiniApp } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector'
+      import { WalletClientConnector } from 'https://esm.sh/@wagmi/core/connectors'
+      import { parseGwei } from 'https://esm.sh/viem'
       import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk'
-      import { parseEther } from 'https://esm.sh/viem'
 
       const totalBoopsEl = document.getElementById("totalBoops")
       const totalTokensEl = document.getElementById("totalTokens")
@@ -95,7 +80,7 @@
         }
       })
 
-      const fetchStats = async () => {
+      async function fetchStats() {
         const contract = await fetch('/contract.json').then(r => r.json())
         const { address, abi } = contract
 
@@ -105,14 +90,16 @@
         ])
 
         totalBoopsEl.innerText = `Total Boops: ${boops}`
-        totalTokensEl.innerText = `Total Tokens: ${Number(tokens) / 1e18}`
+        totalTokensEl.innerText = `Total Tokens: ${(Number(tokens) / 1e18).toFixed(4)}`
       }
 
       boopBtn.addEventListener("click", async () => {
         boopBtn.style.opacity = 0.5
 
         try {
-          await connect(config, { connector: farcasterMiniApp() })
+          const provider = await sdk.wallet.getEthereumProvider()
+          const connector = new WalletClientConnector({ provider })
+          await connect(config, { connector })
 
           const contract = await fetch('/contract.json').then(r => r.json())
           const { address, abi } = contract
@@ -121,7 +108,9 @@
             address,
             abi,
             functionName: 'boop',
-            value: parseEther('0')  // ✅ Added here
+            gas: BigInt(200000),
+            maxFeePerGas: parseGwei('0.2'),
+            maxPriorityFeePerGas: parseGwei('0.1')
           })
 
           console.log('Booped!', hash)
