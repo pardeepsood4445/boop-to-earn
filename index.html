@@ -132,6 +132,11 @@
           connectBtn.disabled = true
         } catch (e) {
           console.warn('Connect failed:', e)
+          if (e.name === "UserRejectedRequestError") {
+            alert("❌ Wallet connection rejected.")
+          } else {
+            alert("⚠️ Failed to connect wallet.")
+          }
         }
       })
 
@@ -142,33 +147,72 @@
         }
 
         boopBtn.style.opacity = 0.5
+        boopBtn.disabled = true
 
         try {
           const contract = await fetch('/contract.json').then(r => r.json())
           const { address, abi } = contract
 
-          // simulate first to catch any issues
-          await simulateContract(config, {
+          // ✅ Pre-check: is contract paused?
+          const paused = await readContract(config, {
+            address,
+            abi,
+            functionName: 'paused'
+          })
+
+          if (paused) {
+            alert("🚨 Boops are paused right now.")
+            return
+          }
+
+          // ✅ Check daily limit for user
+          const remaining = await readContract(config, {
+            address,
+            abi,
+            functionName: 'boopsRemaining',
+            args: [account]
+          })
+
+          if (remaining === 0n) {
+            alert("🚫 You’ve reached your daily boop limit.")
+            return
+          }
+
+          // ✅ Simulate first to get gas estimate
+          const simulation = await simulateContract(config, {
             address,
             abi,
             functionName: 'boop',
             account
           })
 
+          console.log("Gas estimate:", simulation.request.gas)
+
+          // ✅ Write transaction with explicit gas
           const txHash = await writeContract(config, {
             address,
             abi,
             functionName: 'boop',
-            args: []
+            args: [],
+            gas: simulation.request.gas
           })
 
-          console.log("Booped!", txHash)
+          console.log("✅ Booped!", txHash)
           await updateStats()
+          alert("🎉 Boop successful!")
         } catch (err) {
           console.warn("Boop failed", err)
-          // no alert
+
+          if (err.name === "UserRejectedRequestError" || err.message?.includes("User rejected the request")) {
+            alert("❌ You rejected the transaction. Boop canceled.")
+          } else if (err.message?.includes("insufficient funds") || err.message?.includes("gas")) {
+            alert("⛽ Gas issue: Try raising gas or check network settings.")
+          } else {
+            alert("⚠️ Boop failed. Check console for details.")
+          }
         } finally {
           boopBtn.style.opacity = 1
+          boopBtn.disabled = false
         }
       })
 
