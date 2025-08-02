@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=390, initial-scale=1.0" />
   <title>Boop To Earn</title>
 
-  <!-- Farcaster Mini App Metadata -->
   <meta name="fc:frame" content='{
     "version": "1",
     "imageUrl": "https://boop-to-earn.vercel.app/image.png",
@@ -53,23 +52,23 @@
     .counter {
       font-size: 1.2rem;
       margin: 12px 0;
-      max-width: 90%;
     }
   </style>
 </head>
 <body>
   <h2 id="totalBoops" class="counter">Total Boops: ...</h2>
 
-  <img
-    src="/doglogo.png"
-    alt="Dog Nose"
-    class="boop-image"
-    id="boopButton"
-  />
+  <img src="/doglogo.png" alt="Dog Nose" class="boop-image" id="boopButton" />
 
   <h2 id="totalTokens" class="counter">Total Tokens: ...</h2>
 
-  <!-- SDK Setup -->
+  <!-- Farcaster SDK -->
+  <script type="module">
+    import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk';
+    sdk.actions.ready({ disableNativeGestures: true });
+  </script>
+
+  <!-- Wagmi + Farcaster + Boop Logic -->
   <script type="module">
     import {
       createConfig,
@@ -77,65 +76,62 @@
       readContract,
       writeContract,
       http
-    } from 'https://esm.sh/@wagmi/core'
+    } from 'https://esm.sh/@wagmi/core';
 
-    import { arbitrum } from 'https://esm.sh/@wagmi/core/chains'
-    import { farcasterMiniApp } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector'
-    import { parseGwei, formatEther } from 'https://esm.sh/viem'
-    import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk'
+    import { arbitrum } from 'https://esm.sh/@wagmi/core/chains';
+    import { farcasterMiniApp } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector';
+    import { parseGwei } from 'https://esm.sh/viem';
 
-    const totalBoopsEl = document.getElementById("totalBoops")
-    const totalTokensEl = document.getElementById("totalTokens")
-    const boopBtn = document.getElementById("boopButton")
+    const totalBoopsEl = document.getElementById("totalBoops");
+    const totalTokensEl = document.getElementById("totalTokens");
+    const boopBtn = document.getElementById("boopButton");
 
     const config = createConfig({
       chains: [arbitrum],
       transports: { [arbitrum.id]: http() }
-    })
+    });
 
     const fetchStats = async () => {
-      const contract = await fetch('/contract.json').then(r => r.json())
-      const { address, abi } = contract
+      const contract = await fetch('/contract.json').then(r => r.json());
+      const { address, abi } = contract;
 
       const [boops, tokens] = await Promise.all([
         readContract(config, { address, abi, functionName: 'totalBoops' }),
         readContract(config, { address, abi, functionName: 'totalTokensDistributed' })
-      ])
+      ]);
 
-      totalBoopsEl.innerText = `Total Boops: ${boops}`
-      totalTokensEl.innerText = `Total Tokens: ${formatEther(tokens)} BOOP`
-    }
+      totalBoopsEl.innerText = `Total Boops: ${boops}`;
+      totalTokensEl.innerText = `Total Tokens: ${tokens}`;
+    };
 
     boopBtn.addEventListener("click", async () => {
-      boopBtn.style.opacity = 0.5
+      boopBtn.style.opacity = 0.5;
 
       try {
-        await connect(config, { connector: farcasterMiniApp() })
+        await connect(config, { connector: farcasterMiniApp() });
 
-        const contract = await fetch('/contract.json').then(r => r.json())
-        const { address, abi } = contract
+        const contract = await fetch('/contract.json').then(r => r.json());
+        const { address, abi } = contract;
 
         const hash = await writeContract(config, {
           address,
           abi,
           functionName: 'boop',
-          gas: BigInt(300_000),
-          gasPrice: parseGwei('0.1')
-        })
+          gas: BigInt(300000),
+          maxFeePerGas: parseGwei('0.1'),
+          maxPriorityFeePerGas: parseGwei('0.1')
+        });
 
-        console.log('Booped!', hash)
-        await fetchStats()
+        console.log('Booped!', hash);
+        await fetchStats();
       } catch (err) {
-        console.warn('Boop failed or rejected.')
-        console.error(err)
-        // Don’t alert user on rejection
+        console.warn("Boop failed or rejected", err);
       } finally {
-        boopBtn.style.opacity = 1
+        boopBtn.style.opacity = 1;
       }
-    })
+    });
 
-    await fetchStats()
-    sdk.actions.ready({ disableNativeGestures: true })
+    await fetchStats();
   </script>
 </body>
 </html>
