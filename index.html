@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=390, initial-scale=1.0" />
   <title>Boop To Earn</title>
 
+  <!-- Farcaster Mini App Metadata -->
   <meta name="fc:frame" content='{
     "version": "1",
     "imageUrl": "https://boop-to-earn.vercel.app/image.png",
@@ -68,7 +69,7 @@
     sdk.actions.ready({ disableNativeGestures: true });
   </script>
 
-  <!-- Wagmi + Farcaster + Boop Logic -->
+  <!-- Wagmi + Boop Logic -->
   <script type="module">
     import {
       createConfig,
@@ -80,7 +81,7 @@
 
     import { arbitrum } from 'https://esm.sh/@wagmi/core/chains';
     import { farcasterMiniApp } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector';
-    import { parseGwei } from 'https://esm.sh/viem';
+    import { parseEther } from 'https://esm.sh/viem';
 
     const totalBoopsEl = document.getElementById("totalBoops");
     const totalTokensEl = document.getElementById("totalTokens");
@@ -117,9 +118,7 @@
           address,
           abi,
           functionName: 'boop',
-          gas: BigInt(300000),
-          maxFeePerGas: parseGwei('0.1'),
-          maxPriorityFeePerGas: parseGwei('0.1')
+          value: parseEther('0')
         });
 
         console.log('Booped!', hash);
