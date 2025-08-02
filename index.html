@@ -2,10 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=390, height=720, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=390, initial-scale=1.0" />
     <title>Boop To Earn</title>
 
-    <!-- Farcaster Mini App Metadata -->
+    <!-- Farcaster Metadata -->
     <meta name="fc:frame" content='{
       "version": "1",
       "imageUrl": "https://boop-to-earn.vercel.app/image.png",
@@ -22,28 +22,18 @@
     }' />
 
     <style>
-      html, body {
+      body {
         margin: 0;
-        padding: 0;
         background: #00BFFF;
-        font-family: sans-serif;
         color: white;
-        width: 100%;
-        height: 100%;
-        max-width: 390px;
-        max-height: 720px;
-        overflow: hidden;
+        font-family: sans-serif;
+        text-align: center;
+        padding: 16px;
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        text-align: center;
-      }
-
-      h2 {
-        margin: 12px 0;
-        font-size: 1.1rem;
-        font-weight: bold;
+        justify-content: space-between;
+        min-height: 100vh;
       }
 
       .boop-image {
@@ -53,27 +43,56 @@
         object-fit: cover;
         border: 4px solid white;
         cursor: pointer;
-        margin: 16px 0;
+        margin: 12px 0;
+      }
+
+      .counter {
+        font-size: 1.2rem;
+        margin: 8px 0;
+        max-width: 90%;
+        word-break: break-word;
+      }
+
+      .connect-btn {
+        background: white;
+        color: black;
+        font-weight: bold;
+        padding: 0.6rem 1.2rem;
+        border: none;
+        border-radius: 8px;
+        margin-top: 12px;
+        cursor: pointer;
+      }
+
+      .connect-btn:disabled {
+        background: #999;
+        cursor: not-allowed;
       }
     </style>
   </head>
-
   <body>
-    <h2 id="totalBoops">Total Boops: ...</h2>
-    <img src="/doglogo.png" alt="Boop Button" class="boop-image" id="boopButton" />
-    <h2 id="totalTokens">Total Tokens: ...</h2>
+    <h2 class="counter" id="totalBoops">Total Boops: ...</h2>
 
+    <img src="/doglogo.png" alt="Boop" class="boop-image" id="boopButton" />
+
+    <h2 class="counter" id="totalTokens">Total Tokens: ...</h2>
+
+    <button class="connect-btn" id="connectBtn">Connect Wallet</button>
+
+    <!-- SDK & Wagmi -->
     <script type="module">
       import {
         createConfig,
         connect,
+        getAccount,
         readContract,
+        simulateContract,
         writeContract,
         http
-      } from 'https://esm.sh/@wagmi/core'
+      } from 'https://esm.sh/@wagmi/core@2.6.1'
 
       import { arbitrum } from 'https://esm.sh/@wagmi/core/chains'
-      import { farcasterMiniApp } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector'
+      import { farcasterMiniApp } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector@1.0.0'
       import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk'
 
       sdk.actions.ready({ disableNativeGestures: true })
@@ -81,46 +100,79 @@
       const totalBoopsEl = document.getElementById("totalBoops")
       const totalTokensEl = document.getElementById("totalTokens")
       const boopBtn = document.getElementById("boopButton")
+      const connectBtn = document.getElementById("connectBtn")
 
       const config = createConfig({
         chains: [arbitrum],
-        transports: { [arbitrum.id]: http() }
+        transports: { [arbitrum.id]: http() },
+        connectors: [farcasterMiniApp()]
       })
 
-      async function fetchStats() {
-        try {
-          const { address, abi } = await fetch('/contract.json').then(r => r.json())
-          const [boops, tokens] = await Promise.all([
-            readContract(config, { address, abi, functionName: 'totalBoops' }),
-            readContract(config, { address, abi, functionName: 'totalTokensDistributed' })
-          ])
-          totalBoopsEl.innerText = `Total Boops: ${boops}`
-          totalTokensEl.innerText = `Total Tokens: ${(tokens / 1e18).toFixed(2)}`
-        } catch (err) {
-          console.warn('Error fetching stats:', err.message)
-        }
+      let account
+
+      async function updateStats() {
+        const contract = await fetch('/contract.json').then(r => r.json())
+        const { address, abi } = contract
+
+        const [boops, tokens] = await Promise.all([
+          readContract(config, { address, abi, functionName: 'totalBoops' }),
+          readContract(config, { address, abi, functionName: 'totalTokensDistributed' })
+        ])
+
+        const tokensFormatted = (BigInt(tokens) / 10n ** 18n).toString()
+        totalBoopsEl.textContent = `Total Boops: ${boops}`
+        totalTokensEl.textContent = `Total Tokens: ${tokensFormatted}`
       }
 
-      boopBtn.addEventListener("click", async () => {
-        boopBtn.style.opacity = 0.5
+      connectBtn.addEventListener('click', async () => {
         try {
-          await connect(config, { connector: farcasterMiniApp() })
-          const { address, abi } = await fetch('/contract.json').then(r => r.json())
-          await writeContract(config, {
+          const res = await connect(config, { connector: farcasterMiniApp() })
+          account = res.accounts[0]
+          connectBtn.textContent = `${account.slice(0, 6)}...${account.slice(-4)}`
+          connectBtn.disabled = true
+        } catch (e) {
+          console.warn('Connect failed:', e)
+        }
+      })
+
+      boopBtn.addEventListener("click", async () => {
+        if (!account) {
+          alert("Please connect wallet first.")
+          return
+        }
+
+        boopBtn.style.opacity = 0.5
+
+        try {
+          const contract = await fetch('/contract.json').then(r => r.json())
+          const { address, abi } = contract
+
+          // simulate first to catch any issues
+          await simulateContract(config, {
+            address,
+            abi,
+            functionName: 'boop',
+            account
+          })
+
+          const txHash = await writeContract(config, {
             address,
             abi,
             functionName: 'boop',
             args: []
           })
-          await fetchStats()
+
+          console.log("Booped!", txHash)
+          await updateStats()
         } catch (err) {
-          console.warn("Boop failed:", err.message)
+          console.warn("Boop failed", err)
+          // no alert
         } finally {
           boopBtn.style.opacity = 1
         }
       })
 
-      fetchStats()
+      await updateStats()
     </script>
   </body>
 </html>
