@@ -1,172 +1,160 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=390, initial-scale=1.0" />
-    <title>Boop To Earn</title>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=390, initial-scale=1.0" />
+  <title>Boop To Earn</title>
 
-    <!-- Farcaster Mini App Metadata -->
-    <meta name="fc:miniapp" content='{
-      "version": "1",
-      "imageUrl": "https://boop-to-earn.vercel.app/image.png",
-      "button": {
-        "title": "Claim Boop",
-        "action": {
-          "type": "launch_frame",
-          "name": "BoopToEarn",
-          "url": "https://boop-to-earn.vercel.app",
-          "splashImageUrl": "https://boop-to-earn.vercel.app/splash.png",
-          "splashBackgroundColor": "#00BFFF"
-        }
+  <!-- Farcaster Mini App Metadata -->
+  <meta name="fc:miniapp" content='{
+    "version":"1",
+    "imageUrl":"https://boop-to-earn.vercel.app/image.png",
+    "button":{
+      "title":"Claim Boop",
+      "action":{
+        "type":"launch_frame",
+        "name":"BoopToEarn",
+        "url":"https://boop-to-earn.vercel.app",
+        "splashImageUrl":"https://boop-to-earn.vercel.app/splash.png",
+        "splashBackgroundColor":"#00BFFF"
       }
-    }' />
+    }
+  }' />
 
-    <style>
-      body {
-        margin: 0;
-        background: #00BFFF;
-        color: white;
-        font-family: sans-serif;
-        min-height: 100vh;
-        max-width: 390px;
-        margin: 0 auto;
-        padding: 16px;
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+  <style>
+    body {
+      margin: 0;
+      background: #00BFFF;
+      color: white;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px 0;
+      box-sizing: border-box;
+      text-align: center;
+    }
+    .info {
+      font-size: 1rem;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .boop-image {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      object-fit: cover;
+      cursor: pointer;
+      border: 4px solid white;
+      margin: 20px 0;
+    }
+    .loading {
+      font-size: 1rem;
+      color: #eee;
+    }
+    .footer {
+      margin-top: auto;
+      font-size: 0.9rem;
+      padding-bottom: 12px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Stats Section -->
+  <div>
+    <div id="totalBoops" class="info">Total Boops: ...</div>
+    <div id="totalUsers" class="info">Total Users: ...</div>
+    <div id="boopBalance" class="info">Boop Balance: ...</div>
+  </div>
+
+  <!-- Boop Image -->
+  <img src="/doglogo.png" alt="Boop" class="boop-image" id="boopButton" />
+
+  <div id="statusMsg" class="loading"></div>
+
+  <div class="footer">Powered by Farcaster MiniApp</div>
+
+  <!-- SDK + Logic -->
+  <script type="module">
+    import {
+      createConfig,
+      connect,
+      readContract,
+      writeContract,
+      http
+    } from 'https://esm.sh/@wagmi/core';
+    import { arbitrum } from 'https://esm.sh/@wagmi/core/chains';
+    import { farcasterMiniApp } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector';
+    import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk';
+
+    const boopBtn = document.getElementById("boopButton");
+    const totalBoopsEl = document.getElementById("totalBoops");
+    const totalUsersEl = document.getElementById("totalUsers");
+    const boopBalanceEl = document.getElementById("boopBalance");
+    const statusMsg = document.getElementById("statusMsg");
+
+    const config = createConfig({
+      chains: [arbitrum],
+      transports: {
+        [arbitrum.id]: http("https://arb-mainnet.g.alchemy.com/v2/i7ecNZG-rCS5xKuc1GP6_ZSYkgCkBfcr")
       }
+    });
 
-      .top-left {
-        position: absolute;
-        top: 16px;
-        left: 16px;
-        text-align: left;
-        font-size: 14px;
-        line-height: 1.4;
-      }
+    const formatBigNumber = (n) => {
+      const val = Number(n) / 1e18;
+      if (val >= 1_000_000) return (val / 1_000_000).toFixed(1) + 'M';
+      if (val >= 1_000) return (val / 1_000).toFixed(1) + 'K';
+      return val.toFixed(2);
+    }
 
-      .boop-image {
-        width: 160px;
-        height: 160px;
-        border-radius: 50%;
-        object-fit: cover;
-        cursor: pointer;
-        border: 4px solid white;
-        margin-top: 100px;
-        margin-bottom: 24px;
-      }
-
-      h2 {
-        margin: 8px 0;
-        font-size: 18px;
-      }
-    </style>
-  </head>
-
-  <body>
-    <div class="top-left">
-      <div id="totalBoops">Total Boops: ...</div>
-      <div id="totalUsers">Total Users: ...</div>
-      <div id="contractBalance">Boop Balance: ...</div>
-    </div>
-
-    <img
-      src="/doglogo.png"
-      alt="Boop"
-      class="boop-image"
-      id="boopButton"
-    />
-
-    <h2 id="totalTokens">Total Tokens: ...</h2>
-
-    <script type="module">
-      import {
-        createConfig,
-        connect,
-        readContract,
-        writeContract,
-        http
-      } from 'https://esm.sh/@wagmi/core'
-
-      import { arbitrum } from 'https://esm.sh/@wagmi/core/chains'
-      import { farcasterMiniApp } from 'https://esm.sh/@farcaster/miniapp-wagmi-connector'
-      import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk'
-      import { formatUnits } from 'https://esm.sh/viem'
-
-      const config = createConfig({
-        chains: [arbitrum],
-        transports: {
-          [arbitrum.id]: http("https://arb-mainnet.g.alchemy.com/v2/i7ecNZG-rCS5xKuc1GP6_ZSYkgCkBfcr")
-        }
-      })
-
-      const totalBoopsEl = document.getElementById("totalBoops")
-      const totalUsersEl = document.getElementById("totalUsers")
-      const totalTokensEl = document.getElementById("totalTokens")
-      const contractBalanceEl = document.getElementById("contractBalance")
-      const boopBtn = document.getElementById("boopButton")
-
-      function formatCompact(num) {
-        const n = Number(num)
-        if (n >= 1e6) return (n / 1e6).toFixed(1) + "M"
-        if (n >= 1e3) return (n / 1e3).toFixed(1) + "K"
-        return n.toString()
-      }
-
-      const fetchStats = async () => {
-        const { address, abi } = await fetch('/contract.json').then(r => r.json())
-
-        const [boops, users, tokens, balance] = await Promise.all([
+    async function fetchStats() {
+      try {
+        const { address, abi } = await fetch('/contract.json').then(r => r.json());
+        const [boops, users, tokens] = await Promise.all([
           readContract(config, { address, abi, functionName: 'totalBoops' }),
           readContract(config, { address, abi, functionName: 'totalUniqueUsers' }),
-          readContract(config, { address, abi, functionName: 'totalTokensDistributed' }),
-          readContract(config, {
-            address: await (await fetch('/contract.json').then(r => r.json())).address,
-            abi: [{
-              name: 'balanceOf',
-              type: 'function',
-              stateMutability: 'view',
-              inputs: [{ name: 'account', type: 'address' }],
-              outputs: [{ name: '', type: 'uint256' }]
-            }],
-            functionName: 'balanceOf',
-            args: [address]
-          })
-        ])
+          readContract(config, { address: "0x13A7DeDb7169a17bE92B0E3C7C2315B46f4772B3", abi: [
+            { "inputs": [], "name": "balanceOf", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }
+          ], functionName: 'balanceOf', args: [address] })
+        ]);
 
-        totalBoopsEl.innerText = `Total Boops: ${boops}`
-        totalUsersEl.innerText = `Total Users: ${users}`
-        totalTokensEl.innerText = `Total Tokens: ${formatUnits(tokens, 18)}`
-        contractBalanceEl.innerText = `Boop Balance: ${formatCompact(formatUnits(balance, 18))}`
+        totalBoopsEl.innerText = `Total Boops: ${boops}`;
+        totalUsersEl.innerText = `Total Users: ${users}`;
+        boopBalanceEl.innerText = `Boop Balance: ${formatBigNumber(tokens)}`;
+      } catch (e) {
+        console.warn("Failed to fetch stats:", e);
       }
+    }
 
-      boopBtn.addEventListener("click", async () => {
-        boopBtn.style.opacity = 0.5
+    boopBtn.addEventListener("click", async () => {
+      boopBtn.style.opacity = 0.5;
+      statusMsg.textContent = "Sending boop…";
 
-        try {
-          await connect(config, { connector: farcasterMiniApp() })
+      try {
+        await connect(config, { connector: farcasterMiniApp() });
+        const { address, abi } = await fetch('/contract.json').then(r => r.json());
+        const hash = await writeContract(config, {
+          address,
+          abi,
+          functionName: 'boop'
+        });
+        console.log("Tx sent:", hash);
+        statusMsg.textContent = "✅ Boop sent!";
+        await fetchStats();
+      } catch (err) {
+        console.warn("Boop failed or rejected", err);
+        statusMsg.textContent = "";
+      } finally {
+        boopBtn.style.opacity = 1;
+      }
+    });
 
-          const { address, abi } = await fetch('/contract.json').then(r => r.json())
-
-          const hash = await writeContract(config, {
-            address,
-            abi,
-            functionName: 'boop'
-          })
-
-          console.log('Booped!', hash)
-          await fetchStats()
-        } catch (err) {
-          console.error('Boop failed or rejected', err)
-        } finally {
-          boopBtn.style.opacity = 1
-        }
-      })
-
-      await sdk.wallet.getEthereumProvider()
-      await fetchStats()
-      sdk.actions.ready({ disableNativeGestures: true })
-    </script>
-  </body>
+    await fetchStats();
+    await sdk.wallet.getEthereumProvider();
+    sdk.actions.ready({ disableNativeGestures: true });
+  </script>
+</body>
 </html>
